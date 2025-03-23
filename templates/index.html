@@ -1,20 +1,87 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Bachin Draw Assistant</title>
+  <meta charset="UTF-8">
+  <title>🚀 TechNinja | Bachin Draw Virtual Assistant</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f5f5f5;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+
+    .container {
+      background: white;
+      padding: 40px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 500px;
+      text-align: center;
+    }
+
+    h1 {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      margin-top: 20px;
+      font-weight: bold;
+    }
+
+    input[type="file"],
+    textarea {
+      margin-top: 10px;
+      width: 100%;
+      padding: 10px;
+      font-size: 16px;
+    }
+
+    button {
+      background-color: #6A0DAD;
+      color: white;
+      font-size: 16px;
+      padding: 12px 20px;
+      margin-top: 25px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      width: 100%;
+    }
+
+    button:hover {
+      background-color: #5300aa;
+    }
+
+    footer {
+      margin-top: 25px;
+      font-size: 13px;
+      color: #777;
+    }
+  </style>
 </head>
 <body>
-    <h1>Bachin Draw Virtual Assistant</h1>
-    <form method="POST" enctype="multipart/form-data">
-        <label for="csv">Upload Shopify CSV:</label><br>
-        <input type="file" name="csv" required><br><br>
-        <label for="message">Custom Message Template:</label><br>
-        <textarea name="message" rows="4" cols="50" placeholder="Hi [First Name], thank you for your purchase!" required></textarea><br><br>
-        <button type="submit">Generate SVGs</button>
+  <div class="container">
+    <h1>🚀 <strong>TechNinja</strong> | Bachin Draw Virtual Assistant</h1>
+
+    <form action="/generate_gcode" method="POST" enctype="multipart/form-data">
+      <label for="csv">Upload Shopify CSV:</label>
+      <input type="file" name="csv" required>
+
+      <label for="template">Custom Message Template:</label>
+      <textarea name="template" rows="4" required>Hi [First Name], thank you for your purchase!</textarea>
+
+      <button type="submit">Generate G-code</button>
     </form>
-    {% if download_link %}
-    <p><a href="{{ download_link }}">Download SVG ZIP</a></p>
-    {% endif %}
+
+    <footer>
+      Powered by 🧠 <strong>TechNinja</strong> | Automation for Shopify & Bachin
+    </footer>
+  </div>
 </body>
 </html>
