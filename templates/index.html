@@ -1,87 +1,62 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>🚀 TechNinja | Bachin Draw Virtual Assistant</title>
-  <style>
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background-color: #f5f5f5;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      margin: 0;
-    }
-
-    .container {
-      background: white;
-      padding: 40px;
-      border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-      width: 100%;
-      max-width: 500px;
-      text-align: center;
-    }
-
-    h1 {
-      margin-bottom: 20px;
-    }
-
-    label {
-      display: block;
-      margin-top: 20px;
-      font-weight: bold;
-    }
-
-    input[type="file"],
-    textarea {
-      margin-top: 10px;
-      width: 100%;
-      padding: 10px;
-      font-size: 16px;
-    }
-
-    button {
-      background-color: #6A0DAD;
-      color: white;
-      font-size: 16px;
-      padding: 12px 20px;
-      margin-top: 25px;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      width: 100%;
-    }
-
-    button:hover {
-      background-color: #5300aa;
-    }
-
-    footer {
-      margin-top: 25px;
-      font-size: 13px;
-      color: #777;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <title>Bachin G-code Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f4f4;
+            padding: 30px;
+        }
+        .container {
+            max-width: 600px;
+            margin: auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .message {
+            color: red;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        h1 {
+            text-align: center;
+        }
+        textarea, input[type="file"], button {
+            width: 100%;
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            font-weight: bold;
+        }
+    </style>
 </head>
 <body>
-  <div class="container">
-    <h1>🚀 <strong>TechNinja</strong> | Bachin Draw Virtual Assistant</h1>
+    <div class="container">
+        <h1>Bachin G-code Generator</h1>
+        {% with messages = get_flashed_messages() %}
+          {% if messages %}
+            <div class="message">{{ messages[0] }}</div>
+          {% endif %}
+        {% endwith %}
+        <form method="post" enctype="multipart/form-data" action="/generate">
+            <label>Upload CSV file:</label>
+            <input type="file" name="csv_file" required>
 
-    <form action="/generate_gcode" method="POST" enctype="multipart/form-data">
-      <label for="csv">Upload Shopify CSV:</label>
-      <input type="file" name="csv" required>
+            <label>Message Template:</label>
+            <textarea name="message_template" rows="4" required>Hi [First Name], thank you for your purchase!</textarea>
 
-      <label for="template">Custom Message Template:</label>
-      <textarea name="template" rows="4" required>Hi [First Name], thank you for your purchase!</textarea>
-
-      <button type="submit">Generate G-code</button>
-    </form>
-
-    <footer>
-      Powered by 🧠 <strong>TechNinja</strong> | Automation for Shopify & Bachin
-    </footer>
-  </div>
+            <button type="submit">Generate G-code</button>
+        </form>
+    </div>
 </body>
 </html>
+

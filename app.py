@@ -1,5 +1,6 @@
 import os
 import csv
+import shutil
 from flask import Flask, render_template, request, send_file, redirect, url_for, flash
 from flask_cors import CORS
 from datetime import datetime
@@ -30,6 +31,8 @@ def generate():
 
     message_template = request.form.get('message_template', '')
     timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+    session_folder = os.path.join(GCODE_FOLDER, f'gcodes_{timestamp}')
+    os.makedirs(session_folder, exist_ok=True)
 
     filepath = os.path.join(UPLOAD_FOLDER, f'customers_{timestamp}.csv')
     csv_file.save(filepath)
@@ -41,19 +44,21 @@ def generate():
             if not first_name:
                 continue
             personalized_msg = message_template.replace('[First Name]', first_name)
-            filename = f"{row.get('ID', first_name)}.gcode"
-            gcode_path = os.path.join(GCODE_FOLDER, filename)
+            filename = f"{first_name}.gcode"
+            gcode_path = os.path.join(session_folder, filename)
             with open(gcode_path, 'w', encoding='utf-8') as gcode_file:
                 gcode_file.write(f"; G-code for {first_name}\n")
                 gcode_file.write(f"G21 ; Set units to mm\n")
                 gcode_file.write(f"G90 ; Absolute positioning\n")
-                gcode_file.write(f"; Drawing text\n")
                 gcode_file.write(f"(MSG: {personalized_msg})\n")
                 gcode_file.write(f"G0 X0 Y0\n")
                 gcode_file.write(f"M2 ; End of program\n")
 
-    flash('G-code files generated successfully.')
-    return redirect(url_for('index'))
+    zip_filename = f'gcodes_{timestamp}.zip'
+    zip_path = os.path.join(GCODE_FOLDER, zip_filename)
+    shutil.make_archive(zip_path.replace('.zip', ''), 'zip', session_folder)
+
+    return send_file(zip_path, as_attachment=True)
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
