@@ -1,66 +1,84 @@
-import os
-import csv
-import shutil
-from flask import Flask, render_template, request, send_file, redirect, url_for, flash
-from flask_cors import CORS
+from flask import Flask, request, render_template, send_file, redirect, url_for, flash
+import pandas as pd
+import zipfile, os, shutil
 from datetime import datetime
+import matplotlib.pyplot as plt
+from matplotlib.textpath import TextPath
+from matplotlib.patches import PathPatch
+from matplotlib.font_manager import FontProperties
 
 app = Flask(__name__)
-CORS(app)
 app.secret_key = 'secretkey123'
 
 UPLOAD_FOLDER = 'uploads'
-GCODE_FOLDER = 'gcodes'
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-os.makedirs(GCODE_FOLDER, exist_ok=True)
+SVG_FOLDER = 'svgs'
 
-@app.route('/')
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(SVG_FOLDER, exist_ok=True)
+
+def text_to_svg(text, filename):
+    fig, ax = plt.subplots()
+    ax.axis('off')
+
+    font = FontProperties(family="Arial", size=20, weight="bold")
+    text_path = TextPath((0, 0), text, prop=font)
+    patch = PathPatch(text_path, facecolor='black', lw=0)
+    ax.add_patch(patch)
+
+    ax.set_xlim(text_path.get_extents().xmin - 10, text_path.get_extents().xmax + 10)
+    ax.set_ylim(text_path.get_extents().ymin - 10, text_path.get_extents().ymax + 10)
+    ax.set_aspect('equal')
+
+    plt.savefig(filename, format='svg', bbox_inches='tight', pad_inches=0)
+    plt.close()
+
+@app.route('/', methods=['GET', 'POST'])
 def index():
-    return render_template('index.html')
+    columns = []
+    if request.method == 'POST':
+        file = request.files['csv_file']
+        if file.filename == '':
+            flash('Please select a CSV file.')
+            return redirect(url_for('index'))
+
+        csv_path = os.path.join(UPLOAD_FOLDER, file.filename)
+        file.save(csv_path)
+
+        df = pd.read_csv(csv_path)
+        columns = df.columns.tolist()
+        
+        return render_template('index.html', columns=columns, csv_uploaded=True, csv_filename=file.filename)
+
+    return render_template('index.html', columns=columns, csv_uploaded=False)
 
 @app.route('/generate', methods=['POST'])
 def generate():
-    if 'csv_file' not in request.files:
-        flash('No CSV file uploaded.')
-        return redirect(url_for('index'))
+    csv_filename = request.form['csv_filename']
+    column_name = request.form['column_name']
+    message_template = request.form['message_template']
 
-    csv_file = request.files['csv_file']
-    if csv_file.filename == '':
-        flash('No file selected.')
-        return redirect(url_for('index'))
+    csv_path = os.path.join(UPLOAD_FOLDER, csv_filename)
+    df = pd.read_csv(csv_path)
 
-    message_template = request.form.get('message_template', '')
-    timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
-    session_folder = os.path.join(GCODE_FOLDER, f'gcodes_{timestamp}')
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    session_folder = os.path.join(SVG_FOLDER, f'svgs_{timestamp}')
     os.makedirs(session_folder, exist_ok=True)
 
-    filepath = os.path.join(UPLOAD_FOLDER, f'customers_{timestamp}.csv')
-    csv_file.save(filepath)
+    for value in df[column_name]:
+        safe_value = str(value).replace("/", "_").replace("\\", "_")
+        svg_path = os.path.join(session_folder, f"{safe_value}.svg")
+        personalized_message = message_template.replace(f"[{column_name}]", str(value))
+        text_to_svg(personalized_message, svg_path)
 
-    with open(filepath, newline='', encoding='utf-8') as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            first_name = row.get('First Name') or row.get('first_name') or row.get('first name') or ''
-            if not first_name:
-                continue
-            personalized_msg = message_template.replace('[First Name]', first_name)
-            filename = f"{first_name}.gcode"
-            gcode_path = os.path.join(session_folder, filename)
-            with open(gcode_path, 'w', encoding='utf-8') as gcode_file:
-                gcode_file.write(f"; G-code for {first_name}\n")
-                gcode_file.write(f"G21 ; Set units to mm\n")
-                gcode_file.write(f"G90 ; Absolute positioning\n")
-                gcode_file.write(f"(MSG: {personalized_msg})\n")
-                gcode_file.write(f"G0 X0 Y0\n")
-                gcode_file.write(f"M2 ; End of program\n")
+    zip_filename = f'svgs_{timestamp}.zip'
+    zip_path = os.path.join(SVG_FOLDER, zip_filename)
 
-    zip_filename = f'gcodes_{timestamp}.zip'
-    zip_path = os.path.join(GCODE_FOLDER, zip_filename)
-    shutil.make_archive(zip_path.replace('.zip', ''), 'zip', session_folder)
+    with zipfile.ZipFile(zip_path, 'w') as zf:
+        for svg_file in os.listdir(session_folder):
+            zf.write(os.path.join(session_folder, svg_file), svg_file)
 
+    shutil.rmtree(session_folder)
     return send_file(zip_path, as_attachment=True)
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 10000))
-    app.run(host='0.0.0.0', port=port, debug=True)
-
+    app.run(debug=True, port=10000)

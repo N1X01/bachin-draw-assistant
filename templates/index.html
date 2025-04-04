@@ -2,61 +2,35 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Bachin G-code Generator</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: #f4f4f4;
-            padding: 30px;
-        }
-        .container {
-            max-width: 600px;
-            margin: auto;
-            background: #fff;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        }
-        .message {
-            color: red;
-            text-align: center;
-            margin-bottom: 10px;
-        }
-        h1 {
-            text-align: center;
-        }
-        textarea, input[type="file"], button {
-            width: 100%;
-            margin: 10px 0;
-            padding: 10px;
-            border-radius: 5px;
-            border: 1px solid #ccc;
-        }
-        button {
-            background-color: #4CAF50;
-            color: white;
-            font-weight: bold;
-        }
-    </style>
+    <title>Bachin SVG Assistant</title>
 </head>
 <body>
-    <div class="container">
-        <h1>Bachin G-code Generator</h1>
-        {% with messages = get_flashed_messages() %}
-          {% if messages %}
-            <div class="message">{{ messages[0] }}</div>
-          {% endif %}
-        {% endwith %}
-        <form method="post" enctype="multipart/form-data" action="/generate">
-            <label>Upload CSV file:</label>
-            <input type="file" name="csv_file" required>
+    <h2>Bachin SVG Assistant</h2>
 
-            <label>Message Template:</label>
-            <textarea name="message_template" rows="4" required>Hi [First Name], thank you for your purchase!</textarea>
+    {% if not csv_uploaded %}
+    <form method="post" enctype="multipart/form-data">
+        <label>Select CSV File:</label><br>
+        <input type="file" name="csv_file" required><br><br>
+        <button type="submit">Upload CSV & Select Column</button>
+    </form>
 
-            <button type="submit">Generate G-code</button>
-        </form>
-    </div>
+    {% else %}
+    <form action="/generate" method="post">
+        <input type="hidden" name="csv_filename" value="{{ csv_filename }}">
+
+        <label>Select Column to use in message:</label><br>
+        <select name="column_name">
+            {% for col in columns %}
+            <option value="{{col}}">{{col}}</option>
+            {% endfor %}
+        </select><br><br>
+
+        <label>Message Template:</label><br>
+        <input type="text" name="message_template" placeholder="Hi [ColumnName], thanks for your purchase!" required style="width:300px;"><br>
+        <small>Use the exact column name in brackets, e.g., [First Name]</small><br><br>
+
+        <button type="submit">Generate SVG</button>
+    </form>
+    {% endif %}
 </body>
 </html>
-
