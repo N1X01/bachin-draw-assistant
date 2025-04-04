@@ -38,41 +38,47 @@ def index():
         csv_path = os.path.join(UPLOAD_FOLDER, file.filename)
         file.save(csv_path)
 
-        df = pd.read_csv(csv_path)
-        columns = df.columns.tolist()
-
-        return render_template('index.html', columns=columns, csv_uploaded=True, csv_filename=file.filename)
+        try:
+            df = pd.read_csv(csv_path, on_bad_lines='skip')
+            columns = df.columns.tolist()
+            return render_template('index.html', columns=columns, csv_uploaded=True, csv_filename=file.filename)
+        except Exception as e:
+            return f"❌ CSV parsing error: {str(e)}"
 
     return render_template('index.html', columns=columns, csv_uploaded=False)
 
 @app.route('/generate', methods=['POST'])
 def generate():
-    csv_filename = request.form['csv_filename']
-    column_name = request.form['column_name']
-    message_template = request.form['message_template']
+    try:
+        csv_filename = request.form['csv_filename']
+        column_name = request.form['column_name']
+        message_template = request.form['message_template']
 
-    csv_path = os.path.join(UPLOAD_FOLDER, csv_filename)
-    df = pd.read_csv(csv_path)
+        csv_path = os.path.join(UPLOAD_FOLDER, csv_filename)
+        df = pd.read_csv(csv_path, on_bad_lines='skip')
 
-    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-    session_folder = os.path.join(GCODE_FOLDER, f'gcodes_{timestamp}')
-    os.makedirs(session_folder, exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        session_folder = os.path.join(GCODE_FOLDER, f'gcodes_{timestamp}')
+        os.makedirs(session_folder, exist_ok=True)
 
-    for value in df[column_name]:
-        safe_value = str(value).replace("/", "_").replace("\\", "_")
-        gcode_path = os.path.join(session_folder, f"{safe_value}.nc")
-        personalized_message = message_template.replace(f"[{column_name}]", str(value))
-        text_to_gcode(personalized_message, gcode_path)
+        for value in df[column_name]:
+            safe_value = str(value).replace("/", "_").replace("\\", "_")
+            gcode_path = os.path.join(session_folder, f"{safe_value}.nc")
+            personalized_message = message_template.replace(f"[{column_name}]", str(value))
+            text_to_gcode(personalized_message, gcode_path)
 
-    zip_filename = f'gcodes_{timestamp}.zip'
-    zip_path = os.path.join(GCODE_FOLDER, zip_filename)
+        zip_filename = f'gcodes_{timestamp}.zip'
+        zip_path = os.path.join(GCODE_FOLDER, zip_filename)
 
-    with zipfile.ZipFile(zip_path, 'w') as zf:
-        for gcode_file in os.listdir(session_folder):
-            zf.write(os.path.join(session_folder, gcode_file), gcode_file)
+        with zipfile.ZipFile(zip_path, 'w') as zf:
+            for gcode_file in os.listdir(session_folder):
+                zf.write(os.path.join(session_folder, gcode_file), gcode_file)
 
-    shutil.rmtree(session_folder)
-    return send_file(zip_path, as_attachment=True)
+        shutil.rmtree(session_folder)
+        return send_file(zip_path, as_attachment=True)
+
+    except Exception as e:
+        return f"❌ G-code generation error: {str(e)}"
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
