@@ -55,7 +55,7 @@ def generate():
         message_template = request.form['message_template']
 
         csv_path = os.path.join(UPLOAD_FOLDER, csv_filename)
-        df = pd.read_csv(csv_path, on_bad_lines='skip')
+        df = pd.read_csv(csv_path, on_bad_lines='skip', sep=None, engine='python')
 
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         session_folder = os.path.join(GCODE_FOLDER, f'gcodes_{timestamp}')
