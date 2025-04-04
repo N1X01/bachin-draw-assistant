@@ -1,36 +1,39 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Bachin SVG Assistant</title>
+<meta charset="UTF-8">
+<title>🖋️ TechNinja G-code Note Assistant</title>
+<style>
+    body { font-family: Arial, sans-serif; text-align: center; padding: 2rem; }
+    form {
+        background: #f4f4f4; padding: 2rem; margin: 2rem auto;
+        width: 350px; border-radius: 10px; box-shadow: 0 0 10px #aaa;
+    }
+    input, select, button {
+        padding: 0.5rem; margin: 0.5rem 0; width: 100%; font-size: 1rem;
+    }
+    button { background: #007bff; color: white; border: none; cursor: pointer; }
+    button:hover { background: #0056b3; }
+</style>
 </head>
 <body>
-    <h2>Bachin SVG Assistant</h2>
+<h2>🖋️ TechNinja G-code Note Assistant</h2>
 
-    {% if not csv_uploaded %}
-    <form method="post" enctype="multipart/form-data">
-        <label>Select CSV File:</label><br>
-        <input type="file" name="csv_file" required><br><br>
-        <button type="submit">Upload CSV & Select Column</button>
-    </form>
-
-    {% else %}
-    <form action="/generate" method="post">
-        <input type="hidden" name="csv_filename" value="{{ csv_filename }}">
-
-        <label>Select Column to use in message:</label><br>
-        <select name="column_name">
-            {% for col in columns %}
-            <option value="{{col}}">{{col}}</option>
-            {% endfor %}
-        </select><br><br>
-
-        <label>Message Template:</label><br>
-        <input type="text" name="message_template" placeholder="Hi [ColumnName], thanks for your purchase!" required style="width:300px;"><br>
-        <small>Use the exact column name in brackets, e.g., [First Name]</small><br><br>
-
-        <button type="submit">Generate SVG</button>
-    </form>
-    {% endif %}
-</body>
-</html>
+{% if not csv_uploaded %}
+<form method="post" enctype="multipart/form-data">
+    <label>Select CSV File:</label>
+    <input type="file" name="csv_file" required>
+    <button type="submit">Upload CSV & Choose Field</button>
+</form>
+{% else %}
+<form action="/generate" method="post">
+    <input type="hidden" name="csv_filename" value="{{ csv_filename }}">
+    <label>Select Column:</label>
+    <select name="column_name">
+        {% for col in columns %}
+            <option value="{{ col }}">{{ col }}</option>
+        {% endfor %}
+    </select>
+    <label>Message Template:</label>
+    <input type="text" name="message_template" placeholder="Hi [First Name], thank you!">
+    <small>Use [ColumnName] in brackets to insert values.</small><br><br>
+    <button type="submit">Generate G-code Files</button>
+</form>
+{% endif %}
