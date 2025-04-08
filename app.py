@@ -1,68 +1,53 @@
 import os
-import csv
-import subprocess
+import uuid
 from flask import Flask, render_template, request, send_file
-from datetime import datetime
+import pandas as pd
+from zipfile import ZipFile
+from svgwrite import Drawing
 
-# Set up Flask app
 app = Flask(__name__)
-UPLOAD_FOLDER = 'uploads'
-SVG_FOLDER = 'svgs'
 
-# Make sure folders exist
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-os.makedirs(SVG_FOLDER, exist_ok=True)
+OUTPUT_DIR = "outputs"
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-# Generate SVG using vpype and Hershey font
-def create_svg_with_vpype(text, output_path, font="futural", size=20):
-    command = f"""vpype text -f "{font}" -s {size} "{text}" linesimplify write "{output_path}" """
-    result = subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    if result.returncode != 0:
-        print("❌ Error creating SVG:", result.stderr.decode())
-    else:
-        print("✅ SVG generated:", output_path)
-
-# Flask route for index
-@app.route('/', methods=['GET', 'POST'])
+@app.route("/", methods=["GET", "POST"])
 def index():
-    hershey_fonts = [
-        "futural", "cursive", "scriptc", "gothiceng", "gothicger", "timesi",
-        "romand", "rowmant", "astro", "greekc", "mathlow", "symbolic"
-    ]
+    if request.method == "POST":
+        csv_file = request.files["csv_file"]
+        message_template = request.form["message"]
 
-    if request.method == 'POST':
-        # Get form inputs
-        csv_file = request.files['csv_file']
-        message_template = request.form['message']
-        font = request.form.get('font', 'futural')
+        df = pd.read_csv(csv_file)
 
-        # Save uploaded CSV
-        csv_path = os.path.join(UPLOAD_FOLDER, csv_file.filename)
-        csv_file.save(csv_path)
+        zip_id = str(uuid.uuid4())
+        zip_path = os.path.join(OUTPUT_DIR, f"{zip_id}.zip")
 
-        output_files = []
+        with ZipFile(zip_path, "w") as zipf:
+            for _, row in df.iterrows():
+                name = row.get("Name") or row.get("name") or "Customer"
+                message = message_template.replace("{name}", name)
 
-        # Read CSV and generate SVG for each name
-        with open(csv_path, newline='') as file:
-            reader = csv.DictReader(file)
-            for row in reader:
-                first_name = row['First Name']
-                personalized_message = message_template.replace("[First Name]", first_name)
+                svg_filename = f"{name.replace(' ', '_')}.svg"
+                gcode_filename = svg_filename.replace(".svg", ".gcode")
+                svg_path = os.path.join(OUTPUT_DIR, svg_filename)
+                gcode_path = os.path.join(OUTPUT_DIR, gcode_filename)
 
-                # Unique file name with timestamp
-                timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-                filename = f"{first_name}_{timestamp}.svg"
-                svg_path = os.path.join(SVG_FOLDER, filename)
+                # Create SVG with text
+                dwg = Drawing(svg_path, profile='tiny', size=("210mm", "297mm"))
+                dwg.add(dwg.text(message, insert=("10mm", "20mm"), font_size="12px", font_family="hershey")))
+                dwg.save()
 
-                # Generate SVG
-                create_svg_with_vpype(personalized_message, svg_path, font=font, size=20)
-                output_files.append(svg_path)
+                # Convert to G-code using vpype
+                os.system(f"vpype read '{svg_path}' linemerge linesort write -o '{gcode_path}'")
 
-        # Return the first file for download (can be zipped later)
-        return send_file(output_files[0], as_attachment=True)
+                zipf.write(gcode_path, arcname=gcode_filename)
 
-    return render_template('index.html', fonts=hershey_fonts)
+                os.remove(svg_path)
+                os.remove(gcode_path)
 
-# Run the app
-if __name__ == '__main__':
-    app.run(debug=True)
+        return send_file(zip_path, as_attachment=True)
+
+    return render_template("index.html")
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port, debug=True)
