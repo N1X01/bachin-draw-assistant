@@ -1,35 +1,34 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Personalized Note Printer</title>
+    <title>Personalized Note Printer</title>
 </head>
 <body>
-<h1>Personalized Note Printer</h1>
-{% if error %}
-<p style="color: red;">{{ error }}</p>
-{% endif %}
-<form method="POST" enctype="multipart/form-data">
-<div>
-<label for="csv_file">Upload Shopify CSV File:</label>
-<input type="file" name="csv_file" required>
-</div>
-<br>
-<div>
-<label for="message">Enter Message Template (use '[First Name]' as placeholder):</label><br>
-<textarea name="message" rows="4" cols="50" required></textarea>
-</div>
-<br>
-<div>
-<label for="font">Choose Font:</label>
-<select name="font" id="font">
-{% for font in fonts %}
-<option value="{{ font }}" {% if font == 'gothiceng' %}selected{% endif %}>{{ font }}</option>
-{% endfor %}
-</select>
-</div>
-<br>
-<input type="submit" value="Generate Notes">
-</form>
+    <h1>Personalized Note Printer</h1>
+    {% if error %}
+    <p style="color: red;">{{ error }}</p>
+    {% endif %}
+    <form method="POST" enctype="multipart/form-data">
+        <div>
+            <label for="csv_file">Upload Shopify CSV File:</label>
+            <input type="file" name="csv_file" required>
+        </div>
+        <br>
+        <div>
+            <label for="message">Enter Message Template (use '[First Name]' as placeholder):</label><br>
+            <textarea name="message" rows="4" cols="50" required></textarea>
+        </div>
+        <br>
+        <div>
+            <label for="font">Choose Font:</label>
+            <select name="font" id="font">
+                {% for font in fonts %}
+                <option value="{{ font }}" {% if font == 'gothiceng' %}selected{% endif %}>{{ font }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <br>
+        <input type="submit" value="Generate Notes">
+    </form>
 </body>
 </html>
-```
