@@ -1,85 +1,68 @@
-from flask import Flask, request, render_template, send_file, redirect, url_for, flash
-import pandas as pd
-import zipfile, os, shutil
+import os
+import csv
+import subprocess
+from flask import Flask, render_template, request, send_file
 from datetime import datetime
 
+# Set up Flask app
 app = Flask(__name__)
-app.secret_key = 'secretkey123'
-
 UPLOAD_FOLDER = 'uploads'
-GCODE_FOLDER = 'gcodes'
+SVG_FOLDER = 'svgs'
 
+# Make sure folders exist
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-os.makedirs(GCODE_FOLDER, exist_ok=True)
+os.makedirs(SVG_FOLDER, exist_ok=True)
 
-def text_to_gcode(message, filename):
-    gcode = [
-        "G21 ; Set units to mm",
-        "G90 ; Absolute positioning",
-        "G1 X10 Y10 F1000 ; Move to start",
-        "M03 ; Pen down / Start writing",
-        f"; Writing message: {message}",
-        "G1 X10 Y15 ; Simulated line",
-        "M05 ; Pen up / End",
-        "G1 X0 Y0 ; Return to origin"
-    ]
-    with open(filename, "w") as f:
-        f.write("\n".join(gcode))
+# Generate SVG using vpype and Hershey font
+def create_svg_with_vpype(text, output_path, font="futural", size=20):
+    command = f"""vpype text -f "{font}" -s {size} "{text}" linesimplify write "{output_path}" """
+    result = subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if result.returncode != 0:
+        print("❌ Error creating SVG:", result.stderr.decode())
+    else:
+        print("✅ SVG generated:", output_path)
 
+# Flask route for index
 @app.route('/', methods=['GET', 'POST'])
 def index():
-    columns = []
+    hershey_fonts = [
+        "futural", "cursive", "scriptc", "gothiceng", "gothicger", "timesi",
+        "romand", "rowmant", "astro", "greekc", "mathlow", "symbolic"
+    ]
+
     if request.method == 'POST':
-        file = request.files['csv_file']
-        if file.filename == '':
-            flash('Please select a CSV file.')
-            return redirect(url_for('index'))
+        # Get form inputs
+        csv_file = request.files['csv_file']
+        message_template = request.form['message']
+        font = request.form.get('font', 'futural')
 
-        csv_path = os.path.join(UPLOAD_FOLDER, file.filename)
-        file.save(csv_path)
+        # Save uploaded CSV
+        csv_path = os.path.join(UPLOAD_FOLDER, csv_file.filename)
+        csv_file.save(csv_path)
 
-        try:
-            df = pd.read_csv(csv_path, on_bad_lines='skip')
-            columns = df.columns.tolist()
-            return render_template('index.html', columns=columns, csv_uploaded=True, csv_filename=file.filename)
-        except Exception as e:
-            return f"❌ CSV parsing error: {str(e)}"
+        output_files = []
 
-    return render_template('index.html', columns=columns, csv_uploaded=False)
+        # Read CSV and generate SVG for each name
+        with open(csv_path, newline='') as file:
+            reader = csv.DictReader(file)
+            for row in reader:
+                first_name = row['First Name']
+                personalized_message = message_template.replace("[First Name]", first_name)
 
-@app.route('/generate', methods=['POST'])
-def generate():
-    try:
-        csv_filename = request.form['csv_filename']
-        column_name = request.form['column_name']
-        message_template = request.form['message_template']
+                # Unique file name with timestamp
+                timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+                filename = f"{first_name}_{timestamp}.svg"
+                svg_path = os.path.join(SVG_FOLDER, filename)
 
-        csv_path = os.path.join(UPLOAD_FOLDER, csv_filename)
-        df = pd.read_csv(csv_path, on_bad_lines='skip', sep=None, engine='python')
+                # Generate SVG
+                create_svg_with_vpype(personalized_message, svg_path, font=font, size=20)
+                output_files.append(svg_path)
 
-        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-        session_folder = os.path.join(GCODE_FOLDER, f'gcodes_{timestamp}')
-        os.makedirs(session_folder, exist_ok=True)
+        # Return the first file for download (can be zipped later)
+        return send_file(output_files[0], as_attachment=True)
 
-        for value in df[column_name]:
-            safe_value = str(value).replace("/", "_").replace("\\", "_")
-            gcode_path = os.path.join(session_folder, f"{safe_value}.nc")
-            personalized_message = message_template.replace(f"[{column_name}]", str(value))
-            text_to_gcode(personalized_message, gcode_path)
+    return render_template('index.html', fonts=hershey_fonts)
 
-        zip_filename = f'gcodes_{timestamp}.zip'
-        zip_path = os.path.join(GCODE_FOLDER, zip_filename)
-
-        with zipfile.ZipFile(zip_path, 'w') as zf:
-            for gcode_file in os.listdir(session_folder):
-                zf.write(os.path.join(session_folder, gcode_file), gcode_file)
-
-        shutil.rmtree(session_folder)
-        return send_file(zip_path, as_attachment=True)
-
-    except Exception as e:
-        return f"❌ G-code generation error: {str(e)}"
-
+# Run the app
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 10000))
-    app.run(debug=False, host='0.0.0.0', port=port)
+    app.run(debug=True)
