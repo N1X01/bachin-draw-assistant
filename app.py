@@ -33,7 +33,7 @@ def index():
 
                 # Create SVG with text
                 dwg = Drawing(svg_path, profile='tiny', size=("210mm", "297mm"))
-                dwg.add(dwg.text(message, insert=("10mm", "20mm"), font_size="12px", font_family="hershey")))
+                dwg.add(dwg.text(message, insert=("10mm", "20mm"), font_size="12px", font_family="hershey"))
                 dwg.save()
 
                 # Convert to G-code using vpype
