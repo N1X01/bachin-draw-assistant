@@ -1,43 +1,87 @@
-from flask import Flask, render_template, request, send_file
 import os
-import pandas as pd
-from zipfile import ZipFile
-import uuid
+import csv
+from io import BytesIO
+from flask import Flask, request, send_file, render_template
+from werkzeug.utils import secure_filename
+import svgwrite
+from hershey import HersheyFonts  # Using the hershey-fonts library
 
 app = Flask(__name__)
+app.config = 'uploads'
+os.makedirs(app.config, exist_ok=True)
 
-OUTPUT_FOLDER = "outputs"
-os.makedirs(OUTPUT_FOLDER, exist_ok=True)
+# Initialize Hershey Fonts
+hf = HersheyFonts()
+# You can list available fonts using hf.default_font_names
+# Let's choose a default font
+default_hershey_font = 'gothiceng'
+hf.load_default_font(default_hershey_font)
 
-@app.route("/", methods=["GET", "POST"])
+def text_to_stroke_svg_path_hershey(text, font_name=default_hershey_font, scale=1.0, x_offset=0, y_offset=0):
+    """Converts text to SVG path data using Hershey fonts."""
+    hf.load_default_font(font_name)
+    path_data = ""
+    current_x = x_offset
+    for char in text:
+        glyph = hf.char_to_glyph(char)
+        if glyph:
+            for stroke in glyph.strokes:
+                for i in range(len(stroke) - 1):
+                    x1, y1 = stroke[i]
+                    x2, y2 = stroke[i+1]
+                    path_data += f"M{current_x + x1 * scale},{y_offset + y1 * scale} L{current_x + x2 * scale},{y_offset + y2 * scale} "
+            current_x += glyph.width * scale  # Adjust spacing based on glyph width
+        else:
+            current_x += 10 * scale # Default space for unknown characters
+    return path_data.strip()
+
+@app.route('/', methods=)
 def index():
-    if request.method == "POST":
-        message_template = request.form["message"]
-        csv_file = request.files["csv_file"]
-        df = pd.read_csv(csv_file)
-        zip_filename = f"{uuid.uuid4()}.zip"
-        zip_path = os.path.join(OUTPUT_FOLDER, zip_filename)
+    if request.method == 'POST':
+        if 'csv_file' not in request.files:
+            return render_template('index.html', error='No file part')
+        file = request.files['csv_file']
+        if file.filename == '':
+            return render_template('index.html', error='No selected file')
+        if file:
+            filename = secure_filename(file.filename)
+            filepath = os.path.join(app.config, filename)
+            file.save(filepath)
+            message_template = request.form['message']
+            font_choice = request.form.get('font', default_hershey_font) # Get font choice from form
+            svg_files = generate_personalized_svg(filepath, message_template, font_choice)
+            return render_template('download.html', svg_files=svg_files)
+    return render_template('index.html', fonts=hf.default_font_names) # Pass font list to template
 
-        with ZipFile(zip_path, "w") as zipf:
-            for i, row in df.iterrows():
-                name = row["Name"]
-                message = message_template.replace("{name}", name)
-                filename = f"{name.replace(' ', '_')}.gcode"
-                gcode_content = generate_gcode(message)
-                filepath = os.path.join(OUTPUT_FOLDER, filename)
-                with open(filepath, "w") as f:
-                    f.write(gcode_content)
-                zipf.write(filepath, arcname=filename)
-                os.remove(filepath)
+def generate_personalized_svg(csv_filepath, message_template, font_choice):
+    """Reads names from CSV and generates personalized SVG files using Hershey fonts."""
+    svg_files_info =
+    with open(csv_filepath, 'r', encoding='utf-8') as csvfile:
+        reader = csv.DictReader(csvfile)
+        for row in reader:
+            first_name = row.get('First Name')
+            if first_name:
+                personalized_message = message_template.replace('[First Name]', first_name)
+                svg_filename = f"{first_name.lower()}_note.svg"
+                svg_filepath = os.path.join(app.config, svg_filename)
+                create_stroke_svg_hershey(personalized_message, svg_filepath, font_choice)
+                svg_files_info.append({'filename': svg_filename, 'filepath': svg_filepath})
+    return svg_files_info
 
-        return send_file(zip_path, as_attachment=True)
+def create_stroke_svg_hershey(text, output_path, font_choice):
+    """Creates an SVG file with the given text as stroke-based paths using Hershey fonts."""
+    dwg = svgwrite.Drawing(output_path, width=300, height=100)
+    path_data = text_to_stroke_svg_path_hershey(text, font_choice, scale=1.5, y_offset=70) # Adjust scale and offset as needed
+    path = dwg.path(d=path_data, fill='none', stroke='black', stroke_width=1) # Adjust stroke width as needed
+    dwg.add(path)
+    dwg.save()
 
-    return render_template("index.html")
+@app.route('/download/<filename>')
+def download_file(filename):
+    """Downloads the specified SVG file."""
+    return send_file(os.path.join(app.config, filename),
+                     mimetype='image/svg+xml',
+                     as_attachment=True)
 
-def generate_gcode(message):
-    # Simulate G-code output (replace with actual generation logic if needed)
-    return f"; G-code for: {message}\nG28 ; Home\nG1 X10 Y10\n; ... more G-code here ...\n"
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port, debug=True)
+if __name__ == '__main__':
+    app.run(debug=True)
