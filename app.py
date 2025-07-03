@@ -3,7 +3,7 @@ import csv
 from flask import Flask, request, send_file, render_template
 from werkzeug.utils import secure_filename
 import svgwrite
-from hershey import HersheyFonts
+from HersheyFonts import HersheyFonts
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'

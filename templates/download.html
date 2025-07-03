@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Download SVGs</title>
+</head>
+<body>
+    <h2>Generated SVG Files</h2>
+    <ul>
+    {% for file in svg_files %}
+        <li><a href="{{ url_for('download_file', filename=file.filename) }}">{{ file.filename }}</a></li>
+    {% endfor %}
+    </ul>
+    <a href="/">Back</a>
+</body>
+</html>
